@@ -1,0 +1,12 @@
+#pip install -r requirements.txt
+requests
+openai
+PyPDF2
+PyCryptodome
+langchain==0.0.150
+faiss-cpu
+selenium
+playwright
+unstructured
+python-dotenv
+tiktoken
