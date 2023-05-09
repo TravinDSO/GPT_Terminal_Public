@@ -65,4 +65,5 @@ This project requires the following dependencies:
    This will install all the necessary dependencies for the app.
 
 3. To obtain your OPENAI_API_KEY, sign up for an account at https://beta.openai.com/signup/
-Then
+
+4. Add the OPENAI_API_KEY to the enviroment.env
