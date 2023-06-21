@@ -1,43 +1,36 @@
 import os
 import json
 import tkinter as tk
-import time
 from tkinter import filedialog
-from PyPDF2 import PdfReader
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.text_splitter import CharacterTextSplitter
-from langchain.vectorstores import FAISS
-from langchain.chains.question_answering import load_qa_chain
-from langchain.llms import OpenAI
-from langchain.chains import load_chain
-from api.openai_api import rewrite_text
 from api.question_processing import process_question
 
 
-def submit(input_text, output_text, voice_var, data_use=0, data_folder="data"):
+def submit(openai_status_var,input_text, output_text, doc_text, voice_var = '', data_use=0, data_folder="data"):
   
     output_text.delete(1.0, tk.END)
-    g_color = output_text.cget("bg")
-    output_text.configure(bg="#E3C0D5")
-    output_text.insert(tk.END, "Processing...")
-    output_text.update()
+
+    openai_status_var.set("Processing...")
     
+    doc_text.delete(1.0, tk.END)
+    doc_text.update()
+
     question = input_text.get(1.0, tk.END).strip()
     prompt_style = voice_var.get()
 
     result = ""
-    if question:
-        if data_use == 1:
-            supporting_data = process_question(question, data_folder,False)
-            result = rewrite_text(question, prompt_style, supporting_data)
-        elif data_use == 2:
-            result = process_question(question, data_folder, False)
-        else:
-            result = rewrite_text(question, prompt_style, "")
-        
-    output_text.configure(bg=g_color)
-    output_text.delete(1.0, tk.END)
+    docs = []
+    
+    #data_use = # 0 = no data 1 = data 2 = data only
+    result, docs, openai_status = process_question(data_use, question, prompt_style, data_folder,False)
+
+    openai_status_var.set(openai_status)
+
     output_text.insert(tk.END, result)
+
+    if docs:
+        for doc in docs:
+            doc_text.insert(tk.END, doc)
+            doc_text.insert(tk.END, "\n\n")
 
 def change_font_size(text_widgets, size):
     for widget in text_widgets:

@@ -1,6 +1,10 @@
-from ui.main_window import create_main_window
+from ui.main_window import generate_env_file, create_main_window
 
 def main():
+
+    # Generate the environment file if it doesn't exist
+    generate_env_file()
+
     # Create the main application window
     root = create_main_window()
 

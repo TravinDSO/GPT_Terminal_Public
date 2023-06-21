@@ -1,32 +1,69 @@
 import os
 import gc
 import gzip
-import tempfile
 import json
 import xml.etree.ElementTree as ET
+from dotenv import load_dotenv,find_dotenv
 from PyPDF2 import PdfReader
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
-from langchain.llms import OpenAI
-from langchain.chains import load_chain
-from langchain.document_loaders import SeleniumURLLoader, UnstructuredURLLoader
-from config import EMBEDDINGS_MODEL, LANGCHAIN_MODEL
+from langchain.chat_models import ChatOpenAI
+from langchain.document_loaders import SeleniumURLLoader, CSVLoader
+from langchain.callbacks import get_openai_callback
 
-class CustomTextSplitter(CharacterTextSplitter):
-    def __init__(self, separators, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.separators = separators
+# Process the question and return the answer
+# Also perform the indexing of the documents if needed
+def process_question(data_use, query, prompt_style, data_folder,reindex=False):
 
-    def split_text(self, text):
-        import re
-        chunks = []
-        pattern = '|'.join(map(re.escape, self.separators))
-        splits = re.split(pattern, text)
-        return self._merge_splits(splits, self.separators[0])
+    load_dotenv(find_dotenv(), override=True)
 
-def process_question(query, data_folder,reindex=False):
+    # Convert the environment variables to booleans
+    use_azure = os.getenv("USE_AZURE")
+    if use_azure is not None and use_azure.lower() == "true":
+        USE_AZURE = True
+    else:
+        USE_AZURE = False
+
+    # Set the environment variables for the OpenAI API / Azure API
+    if USE_AZURE:
+        os.environ["OPENAI_API_TYPE"] = "azure"
+        os.environ["OPENAI_API_BASE"] = os.getenv("AZURE_OPENAI_API_ENDPOINT")
+        os.environ["OPENAI_API_KEY"] = os.getenv("AZURE_OPENAI_API_KEY")
+        EMBEDDINGS_MODEL = os.getenv("AZURE_EMBEDDINGS_MODEL")
+        AZURE_OPENAI_API_MODEL = os.getenv("AZURE_OPENAI_API_MODEL")
+        OpenAIEmbeddings.deployment = os.getenv("AZURE_OPENAI_API_MODEL")
+    else:
+        os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
+        EMBEDDINGS_MODEL = os.getenv("EMBEDDINGS_MODEL")
+        OPENAI_API_MODEL = os.getenv("OPENAI_API_MODEL")
+
+    # Text splitter for splitting the text into chunks
+    class CustomTextSplitter(CharacterTextSplitter):
+        def __init__(self, separators, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.separators = separators
+
+        def split_text(self, text):
+            import re
+            chunks = []
+            pattern = '|'.join(map(re.escape, self.separators))
+            splits = re.split(pattern, text)
+            return self._merge_splits(splits, self.separators[0])
+
+
+    if data_use == 2:
+        query_temp = 0.0
+    else:
+        query_temp = os.getenv("PROMPT_QUERY_TEMP")
+
+    max_tokens = int(os.getenv("MAX_TOKENS"))
+
+    if USE_AZURE:
+        chain = load_qa_chain(ChatOpenAI(max_tokens=max_tokens,deployment_id=AZURE_OPENAI_API_MODEL,temperature=query_temp), chain_type="stuff")
+    else:
+        chain = load_qa_chain(ChatOpenAI(max_tokens=max_tokens,model_name=OPENAI_API_MODEL,temperature=query_temp), chain_type="stuff")    
 
     chain_path = os.path.join(data_folder, 'chain.json')
     docsearch_path = os.path.join(data_folder, 'docsearch')
@@ -55,6 +92,17 @@ def process_question(query, data_folder,reindex=False):
                             if text:
                                 f.write(text)
                         # Release memory after processing each PDF
+                        del reader
+                        gc.collect()
+                    if file.endswith('.csv'):
+                        csv_path = os.path.join(root, file)
+                        print("Parsing" + csv_path)
+                        reader = CSVLoader(csv_path)
+                        data = reader.load()
+                        for i, row in enumerate(data):
+                            if row:
+                                f.write(row.page_content)
+                        # Release memory after processing each csv
                         del reader
                         gc.collect()
                     elif file.endswith('.txt'):
@@ -91,10 +139,11 @@ def process_question(query, data_folder,reindex=False):
         # Initialize an empty list to store processed text chunks
         processed_texts_cache = []
 
+        #Need to replace the magic numbers with variables and include them in the environment file
         with gzip.open(compressed_raw_text_file, 'rt', encoding='utf-8') as f:
             text_splitter = CustomTextSplitter(
                 separators=['\n', '. '],
-                chunk_size=5000,
+                chunk_size=1000,
                 chunk_overlap=400,
                 length_function=len,
             )
@@ -119,15 +168,13 @@ def process_question(query, data_folder,reindex=False):
 
         os.remove(compressed_raw_text_file)
 
-        embeddings = OpenAIEmbeddings(model=EMBEDDINGS_MODEL)
+        embeddings = OpenAIEmbeddings(model=EMBEDDINGS_MODEL,chunk_size=1)
         docsearch = FAISS.from_texts(processed_texts_cache, embeddings)
-        chain = load_qa_chain(OpenAI(max_tokens=400,model_name=LANGCHAIN_MODEL,temperature=0.1), chain_type="stuff")
         docsearch.save_local(docsearch_path)
         chain.save(chain_path)
     else:
-        embeddings = OpenAIEmbeddings(model=EMBEDDINGS_MODEL)
+        embeddings = OpenAIEmbeddings(model=EMBEDDINGS_MODEL,chunk_size=1)
         docsearch = FAISS.load_local(docsearch_path, embeddings)
-        chain = load_chain(chain_path)
 
     # Load additional docsearch instances and combine them
     if os.path.exists(add_docsearch_file):
@@ -142,9 +189,32 @@ def process_question(query, data_folder,reindex=False):
                 docsearch.merge_from(additional_docsearch)
 
     if query != '':
-        docs = docsearch.similarity_search(query, k=10)
-        answer = chain.run(input_documents=docs, question=query)
-    else:
-        answer = ''
 
-    return answer
+        total_tokens = ""
+        openai_status = ""
+
+        if prompt_style:
+            question = prompt_style + ":" + query
+        else:
+            question = query
+
+        if data_use > 0:
+            number_of_docs = int(os.getenv("NUM_DOCS_TO_SEARCH"))
+            docs = docsearch.similarity_search(query, k=number_of_docs)
+
+            with get_openai_callback() as cb:
+                answer = chain.run(input_documents=docs, question=question)
+                total_tokens = cb.total_tokens
+
+        else:
+            docs=[]
+            answer = chain.run(input_documents=docs, question=question)
+
+        openai_status = USE_AZURE
+
+        if total_tokens:
+            openai_status += "Total tokens used: " + str(total_tokens)
+
+        return answer, docs, openai_status
+    else:
+        return "", None, openai_status
