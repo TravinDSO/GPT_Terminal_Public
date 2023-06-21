@@ -185,4 +185,3 @@ def generate_env_file(filename='environment.env'):
             f.write("AZURE_EMBEDDINGS_MODEL=\"\"\n")
             f.write("AZURE_OPENAI_API_VERSION=\"\"\n")
             f.write("AZURE_OPENAI_API_LOCATION=\"\"\n")
-            f.write("AZURE_LANGCHAIN_MODEL=\"\"\n")
