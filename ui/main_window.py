@@ -174,7 +174,9 @@ def generate_env_file(filename='environment.env'):
     if not os.path.exists(filename):
         with open(filename, 'w') as f:
             f.write("USE_AZURE=False\n")
-            f.write("USE_SECRETSERVER=False\n")
+            f.write("PROMPT_QUERY_TEMP=0.7\n")
+            f.write("MAX_TOKENS=800\n")
+            f.write("NUM_DOCS_TO_SEARCH=5\n")
             f.write("OPENAI_API_KEY=\"\"\n")
             f.write("OPENAI_API_ENDPOINT=\"https://api.openai.com/v1/completions\"\n")
             f.write("OPENAI_API_MODEL=\"gpt-3.5-turbo\"\n")
