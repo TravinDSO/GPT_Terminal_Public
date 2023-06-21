@@ -17,7 +17,7 @@ from langchain.callbacks import get_openai_callback
 # Also perform the indexing of the documents if needed
 def process_question(data_use, query, prompt_style, data_folder,reindex=False):
 
-    load_dotenv(find_dotenv(), override=True)
+    load_dotenv('environment.env', override=True)
 
     # Convert the environment variables to booleans
     use_azure = os.getenv("USE_AZURE")
@@ -210,7 +210,7 @@ def process_question(data_use, query, prompt_style, data_folder,reindex=False):
             docs=[]
             answer = chain.run(input_documents=docs, question=question)
 
-        openai_status = USE_AZURE
+        openai_status = ""
 
         if total_tokens:
             openai_status += "Total tokens used: " + str(total_tokens)
