@@ -188,6 +188,8 @@ def process_question(data_use, query, prompt_style, data_folder,reindex=False):
                 additional_docsearch = FAISS.load_local(additional_docsearch_path, embeddings)
                 docsearch.merge_from(additional_docsearch)
 
+    openai_status = ""
+
     if query != '':
 
         total_tokens = ""
@@ -209,8 +211,6 @@ def process_question(data_use, query, prompt_style, data_folder,reindex=False):
         else:
             docs=[]
             answer = chain.run(input_documents=docs, question=question)
-
-        openai_status = ""
 
         if total_tokens:
             openai_status += "Total tokens used: " + str(total_tokens)
