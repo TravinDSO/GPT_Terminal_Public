@@ -1,13 +1,12 @@
 import os
-import json
 import tkinter as tk
-from tkinter import filedialog
+from markdown2 import Markdown
 from api.question_processing import process_question
 
 
-def submit(openai_status_var,input_text, output_text, doc_text, voice_var = '', data_use=0, data_folder="data"):
-  
-    output_text.delete(1.0, tk.END)
+def submit(total_docs_var,max_tokens_var,query_temp_var,openai_status_var,input_text, output_text, doc_text, voice_var = '', data_use=0, data_folder="data", env_file='environment.env',reindex=False,chat_history=[]):
+
+    #output_text.delete(1.0, tk.END)
 
     openai_status_var.set("Processing...")
     
@@ -19,42 +18,28 @@ def submit(openai_status_var,input_text, output_text, doc_text, voice_var = '', 
 
     result = ""
     docs = []
-    
     #data_use = # 0 = no data 1 = data 2 = data only
-    result, docs, openai_status = process_question(data_use, question, prompt_style, data_folder,False)
+    result, docs, openai_status = process_question(total_docs_var,max_tokens_var,query_temp_var,openai_status_var,doc_text,env_file,data_use, question, prompt_style, data_folder,reindex,chat_history)
+
+    doc_text.delete(1.0, tk.END)
+    doc_text.update()
 
     openai_status_var.set(openai_status)
 
-    output_text.insert(tk.END, result)
+    result = Markdown().convert(result)
+    output_text.set_html(result)
 
     if docs:
         for doc in docs:
             doc_text.insert(tk.END, doc)
             doc_text.insert(tk.END, "\n\n")
 
-def change_font_size(text_widgets, size):
+def change_font_size(output_text,text_widgets, size):
     for widget in text_widgets:
         if isinstance(widget, tk.Text):
             current_font = widget.cget("font")
             widget.configure(font=(current_font, size))
-
-def select_data_folder(data_folder_var):
-    selected_folder = filedialog.askdirectory()
-    if selected_folder:
-        full_path = os.path.abspath(selected_folder)
-        data_folder_var.set(full_path)
-        save_data_folder_var(full_path)  # Save the selected folder path to config.json
-
-def save_data_folder_var(data_folder_var_value, config_file='config.json'):
-    with open(config_file, 'w') as f:
-        json.dump({"data_folder": data_folder_var_value}, f)
-
-def load_data_folder_var(config_file='config.json'):
-    if os.path.exists(config_file):
-        with open(config_file, 'r') as f:
-            config_data = json.load(f)
-            return config_data.get("data_folder")
-    return None
+    output_text.config(font=(current_font, size))
 
 def toggle_dark_mode(root, text_widgets, is_dark_mode):
     if is_dark_mode.get():
