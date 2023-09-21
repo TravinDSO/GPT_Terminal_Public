@@ -26,7 +26,8 @@ def submit(total_docs_var,max_tokens_var,query_temp_var,openai_status_var,input_
 
     openai_status_var.set(openai_status)
 
-    result = Markdown().convert(result)
+    #result = Markdown().convert(result)
+    result = result.replace("\n", "<br>")
     output_text.set_html(result)
 
     if docs:

@@ -8,6 +8,7 @@ import time
 import tkinter as tk
 import xml.etree.ElementTree as ET
 from datetime import datetime
+from box_sdk_gen.ccg_auth import CCGAuth,CCGConfig
 from box_sdk_gen.developer_token_auth import DeveloperTokenAuth
 from box_sdk_gen.client import Client as BoxClient
 from notion_client import Client as NotionClient
@@ -197,22 +198,49 @@ def process_question(total_docs_var,max_tokens_var,query_temp,openai_status_var,
                     f.write(text)
 
             if USE_BOX:
-                box_auth: DeveloperTokenAuth = DeveloperTokenAuth(token=BOX_TOKEN)
+                if os.getenv("BOX_DEVELOPER_TOKEN"):
+                    box_auth: DeveloperTokenAuth = DeveloperTokenAuth(token=BOX_TOKEN)
+                else:
+                    if os.getenv("BOX_ENTERPRISE_ID"):
+                        box_oauth_config = CCGConfig(
+                            client_id=os.getenv("BOX_CLIENT_ID"),
+                            client_secret=os.getenv("BOX_CLIENT_SECRET"),
+                            enterprise_id=os.getenv("BOX_ENTERPRISE_ID")
+                        )
+                    else:
+                        box_oauth_config = CCGConfig(
+                            client_id=os.getenv("BOX_CLIENT_ID"),
+                            client_secret=os.getenv("BOX_CLIENT_SECRET"),
+                            user_id=os.getenv("BOX_USER_ID")
+                        )
+                    box_auth = CCGAuth(config=box_oauth_config)
+                
                 box_client: BoxClient = BoxClient(auth=box_auth)
                 for box_item in box_client.folders.get_folder_items(BOX_FOLDER_ID).entries:
-                    if box_item.type == 'file':
+                    
+                    boxfile_ext = box_item.name.split('.')[-1]
+                    if boxfile_ext in ['vtt', 'txt', 'boxnote']:
+                        boxfile_is_readable = True
+                    else:
+                        boxfile_is_readable = False
+
+                    if box_item.type == 'file' and boxfile_is_readable:
                         try:
                             box_file = box_client.downloads.download_file(box_item.id).read()
-                            boxnote_data = json.loads(box_file.decode('utf-8'))
-                            
-                            # Get the lastEditTimestamp value
-                            timestamp_in_millis = boxnote_data.get('lastEditTimestamp')
-                            if timestamp_in_millis:
-                                timestamp_in_seconds = timestamp_in_millis / 1000
-                                boxnote_timestamp = datetime.fromtimestamp(timestamp_in_seconds).strftime('%Y-%m-%d %H:%M:%S')
+                            if boxfile_ext == 'boxnote':
+                                boxfile_data = json.loads(box_file.decode('utf-8'))
+                                # Get the lastEditTimestamp value
+                                timestamp_in_millis = boxfile_data.get('lastEditTimestamp')
+                                if timestamp_in_millis:
+                                    timestamp_in_seconds = timestamp_in_millis / 1000
+                                    boxfile_timestamp = datetime.fromtimestamp(timestamp_in_seconds).strftime('%Y-%m-%d %H:%M:%S')
 
-                            boxnote_text = boxnote_data.get('atext', {}).get('text', '')
-                            f.write("Note name:" + box_item.name + " Date of note:" + boxnote_timestamp + " Note:" + boxnote_text)
+                                boxfile_text = boxfile_data.get('atext', {}).get('text', '')
+                                f.write("Note name:" + box_item.name + " Date of note:" + boxfile_timestamp + " Note:" + boxfile_text)
+                            elif boxfile_ext in ['vtt', 'txt']:
+                                boxfile_text = box_file.decode('utf-8')
+                                f.write("File name:" + box_item.name + " File Text:" + boxfile_text)
+
                             doc_text.insert(tk.END, f"Loaded box file: {box_item.name}\n")
                             doc_text.update()
                             doc_text.see(tk.END)

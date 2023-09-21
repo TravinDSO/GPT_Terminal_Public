@@ -1,4 +1,5 @@
 import os
+import time
 import json
 import dotenv
 import sys
@@ -25,7 +26,9 @@ def create_main_window():
 
     dotenv.load_dotenv(dotenv_path=env_file, override=True)
 
-    default_system_message = "You are a helpful assistant. Respond using markdown."
+    today = time.strftime("%Y-%m-%d")
+
+    default_system_message = "You are a helpful assistant. Today is: " + today
 
     use_azure = os.getenv("USE_AZURE")
     frame_color = os.getenv("FRAME_COLOR")
@@ -86,12 +89,13 @@ def create_main_window():
     main_frame.columnconfigure(4, weight=2)
 
     # Create voice label and entry
-    voice_label = ttk.Label(main_frame, style='My.TLabel', text="Tell OpenAI what to do with the input (optional):")
+    voice_label = ttk.Label(main_frame, style='My.TLabel', text="Tell OpenAI what to do with the input (optional)")
     voice_label.grid(row=2, column=0, sticky=tk.W)
     voice_var = tk.StringVar()
     voice_var.set(default_system_message)
-    voice_entry = ttk.Entry(main_frame, textvariable=voice_var, background=input_color)
-    voice_entry.grid(row=3, column=0,columnspan=2,sticky=(tk.W, tk.E))
+    voice_entry = tk.Text(main_frame, background=input_color, height=3, width=30, wrap="word")
+    voice_entry.grid(row=3, column=0,columnspan=2,rowspan=2,sticky=(tk.W, tk.E))
+    voice_entry.insert(tk.END, voice_var.get())
 
     # Create submit buttons
     # 0 = no data 1 = data 2 = data only
@@ -111,18 +115,6 @@ def create_main_window():
     # Create a button to open the directory selection dialog
     data_folder_button = ttk.Button(main_frame, style='My.TButton', text="Select Data Folder", command=lambda: select_data_folder(data_folder_var,root))
     data_folder_button.grid(row=4, column=2, sticky=(tk.W, tk.E))
-
-    # Create font size label and dropdown
-    font_size_label = ttk.Label(main_frame, style='My.TLabel', text="Font Size:")
-    font_size_label.grid(row=4, column=0, sticky=tk.E)
-
-    font_size_var = tk.StringVar()
-    font_size_var.set("14")
-    font_size_dropdown = ttk.OptionMenu(main_frame, font_size_var, "14", "10", "12", "14", "16", "18", "20", style='My.TLabel',command=lambda size: change_font_size(output_text,[input_text, doc_text], size))
-    font_size_dropdown.grid(row=4, column=1, sticky=(tk.W))
-
-    # Set default font size
-    change_font_size(output_text,[input_text, doc_text], "14")
 
     # Create a label and slider to adjust PROMPT_QUERY_TEMP
     query_temp_var = tk.StringVar()
@@ -306,8 +298,12 @@ def generate_env_file(filename='environment.env'):
             f.write("AZURE_OPENAI_API_LOCATION=\"\"\n")
             f.write("NOTION_API_KEY=\"\"\n")
             f.write("NOTION_DATABASE_ID=\"\"\n")
-            f.write("BOX_TOKEN=\"\"\n")
-            f.write("BOX_FOLDER_ID=\"\"\n")
+            f.write("BOX_CLIENT_ID=\"\"\n")
+            f.write("BOX_CLIENT_SECRET=\"\"\n")
+            f.write("BOX_ENTERPRISE_ID=\"\"\n")
+            f.write("BOX_USER_ID=\"\"\n")
+            f.write("BOX_FOLDER_ID==\"\"\n")
+            f.write("BOX_DEVELOPER_TOKEN==\"\"\n")
             f.write("FRAME_COLOR=\"#04993B\"\n")
             f.write("LABEL_TEXT=\"#FFFFFF\"\n")
             f.write("BUTTON_TEXT=\"#000000\"\n")
