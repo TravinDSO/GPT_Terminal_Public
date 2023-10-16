@@ -8,9 +8,9 @@ import time
 import tkinter as tk
 import xml.etree.ElementTree as ET
 from datetime import datetime
-from box_sdk_gen.ccg_auth import CCGAuth,CCGConfig
-from box_sdk_gen.developer_token_auth import DeveloperTokenAuth
-from box_sdk_gen.client import Client as BoxClient
+from box_sdk_gen.ccg_auth import CCGConfig,BoxCCGAuth
+from box_sdk_gen.developer_token_auth import BoxDeveloperTokenAuth
+from box_sdk_gen.client import BoxClient
 from notion_client import Client as NotionClient
 from dotenv import load_dotenv
 from PyPDF2 import PdfReader
@@ -107,6 +107,7 @@ def process_question(total_docs_var,max_tokens_var,query_temp,openai_status_var,
     chain_path = os.path.join(data_folder, 'chain.json')
     docsearch_path = os.path.join(data_folder, 'docsearch')
     url_file = os.path.join(data_folder, 'urls.txt')
+    wurl_file = os.path.join(data_folder, 'wurls.txt') # A URL that will be walked to find more URLs and content
     compressed_raw_text_file = os.path.join(data_folder, 'temporary_cached_data.gz')
     add_docsearch_file = os.path.join(data_folder, 'add_docsearch.json')
 
@@ -197,9 +198,23 @@ def process_question(total_docs_var,max_tokens_var,query_temp,openai_status_var,
                     text = data.page_content
                     f.write(text)
 
+            if wurl_file and os.path.exists(wurl_file):
+                with open(wurl_file, 'r') as wurl_file_obj:
+                    wurl_list = [line.strip() for line in wurl_file_obj]
+                url_loader = SeleniumURLLoader(urls=wurl_list)
+                url_loader.arguments = ['--disable-gpu']
+                url_data = url_loader.load()
+
+                # Create an empty list to collect URLs
+                collected_urls = []
+
+                for i, data in enumerate(url_data):
+                    text = data.page_content
+                    f.write(text)
+
             if USE_BOX:
                 if os.getenv("BOX_DEVELOPER_TOKEN"):
-                    box_auth: DeveloperTokenAuth = DeveloperTokenAuth(token=BOX_TOKEN)
+                    box_auth: BoxDeveloperTokenAuth = BoxDeveloperTokenAuth(token=BOX_TOKEN)
                 else:
                     if os.getenv("BOX_ENTERPRISE_ID"):
                         box_oauth_config = CCGConfig(
@@ -213,7 +228,7 @@ def process_question(total_docs_var,max_tokens_var,query_temp,openai_status_var,
                             client_secret=os.getenv("BOX_CLIENT_SECRET"),
                             user_id=os.getenv("BOX_USER_ID")
                         )
-                    box_auth = CCGAuth(config=box_oauth_config)
+                    box_auth = BoxCCGAuth(config=box_oauth_config)
                 
                 box_client: BoxClient = BoxClient(auth=box_auth)
                 for box_item in box_client.folders.get_folder_items(BOX_FOLDER_ID).entries:
@@ -399,7 +414,7 @@ def process_question(total_docs_var,max_tokens_var,query_temp,openai_status_var,
         answer = ""
 
         if prompt_style:
-            question = f"{prompt_style}: {query}"
+            question = f"'role': 'system', 'content':{prompt_style}\n'role': 'system', 'user'{query}"
         else:
             question = f"{query}"
 

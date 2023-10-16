@@ -99,17 +99,17 @@ def create_main_window():
 
     # Create submit buttons
     # 0 = no data 1 = data 2 = data only
-    submit_button = ttk.Button(main_frame, style='My.TButton', text="Submit without data", command=lambda: submit(total_docs_var,max_tokens_var,query_temp_var,openai_status_var,input_text, output_text, doc_text, voice_var, 0, str(data_folder_var.get()),env_file, False, chat_history))
+    submit_button = ttk.Button(main_frame, style='My.TButton', text="Submit without data", command=lambda: submit(total_docs_var,max_tokens_var,query_temp_var,openai_status_var,input_text, output_text, doc_text, voice_entry, 0, str(data_folder_var.get()),env_file, False, chat_history))
     submit_button.grid(row=2, column=2, sticky=(tk.W, tk.E))
 
-    submit_button = ttk.Button(main_frame, style='My.TButton', text="Submit with data", command=lambda: submit(total_docs_var,max_tokens_var,query_temp_var,openai_status_var,input_text, output_text, doc_text, voice_var, 1, str(data_folder_var.get()),env_file, False, chat_history))
+    submit_button = ttk.Button(main_frame, style='My.TButton', text="Submit with data", command=lambda: submit(total_docs_var,max_tokens_var,query_temp_var,openai_status_var,input_text, output_text, doc_text, voice_entry, 1, str(data_folder_var.get()),env_file, False, chat_history))
     submit_button.grid(row=2, column=3, sticky=(tk.W, tk.E))
 
-    submit_button = ttk.Button(main_frame, style='My.TButton', text="Data only search", command=lambda: (submit(total_docs_var,max_tokens_var,query_temp_var,openai_status_var,input_text, output_text, doc_text, voice_var, 2, str(data_folder_var.get()),env_file, False,chat_history),update_query_temp_label(query_temp_var,query_temp_label,True)))
+    submit_button = ttk.Button(main_frame, style='My.TButton', text="Data only search", command=lambda: (submit(total_docs_var,max_tokens_var,query_temp_var,openai_status_var,input_text, output_text, doc_text, voice_entry, 2, str(data_folder_var.get()),env_file, False,chat_history),update_query_temp_label(query_temp_var,query_temp_label,True)))
     submit_button.grid(row=3, column=2, columnspan=2, sticky=(tk.W, tk.E))
 
     # Create a button to force data folder indexing
-    data_folder_button = ttk.Button(main_frame, style='My.TButton', text="Index Folder ($$$)", command=lambda: (submit(total_docs_var,max_tokens_var,query_temp_var,openai_status_var,input_text, output_text, doc_text, voice_var, 2, str(data_folder_var.get()),env_file, True, chat_history),update_query_temp_label(query_temp_var,query_temp_label,True)))
+    data_folder_button = ttk.Button(main_frame, style='My.TButton', text="Index Folder ($$$)", command=lambda: (submit(total_docs_var,max_tokens_var,query_temp_var,openai_status_var,input_text, output_text, doc_text, voice_entry, 2, str(data_folder_var.get()),env_file, True, chat_history),update_query_temp_label(query_temp_var,query_temp_label,True)))
     data_folder_button.grid(row=4, column=3, sticky=(tk.W, tk.E))
 
     # Create a button to open the directory selection dialog
@@ -284,8 +284,6 @@ def generate_env_file(filename='environment.env'):
             f.write("PROMPT_QUERY_TEMP=0.7\n")
             f.write("MAX_TOKENS=800\n")
             f.write("NUM_DOCS_TO_SEARCH=5\n")
-            f.write("NOTION_API_KEY=\"\"\n")
-            f.write("NOTION_DATABASE_ID=\"\"\n")
             f.write("OPENAI_API_KEY=\"\"\n")
             f.write("OPENAI_API_ENDPOINT=\"https://api.openai.com/v1/completions\"\n")
             f.write("OPENAI_API_MODEL=\"gpt-3.5-turbo\"\n")

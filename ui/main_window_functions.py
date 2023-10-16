@@ -4,7 +4,7 @@ from markdown2 import Markdown
 from api.question_processing import process_question
 
 
-def submit(total_docs_var,max_tokens_var,query_temp_var,openai_status_var,input_text, output_text, doc_text, voice_var = '', data_use=0, data_folder="data", env_file='environment.env',reindex=False,chat_history=[]):
+def submit(total_docs_var,max_tokens_var,query_temp_var,openai_status_var,input_text, output_text, doc_text, voice_entry = '', data_use=0, data_folder="data", env_file='environment.env',reindex=False,chat_history=[]):
 
     #output_text.delete(1.0, tk.END)
 
@@ -14,7 +14,7 @@ def submit(total_docs_var,max_tokens_var,query_temp_var,openai_status_var,input_
     doc_text.update()
 
     question = input_text.get(1.0, tk.END).strip()
-    prompt_style = voice_var.get()
+    prompt_style = voice_entry.get(1.0, tk.END).strip()
 
     result = ""
     docs = []
