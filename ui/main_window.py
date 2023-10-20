@@ -12,7 +12,7 @@ from ui.main_window_functions import submit, change_font_size
 
 
 def create_main_window():
-    root = tk.Tk()
+    root = tk.Tk() 
     root.title("GPT Terminal")
     
     os.environ["APP_RESTART"] = "False"

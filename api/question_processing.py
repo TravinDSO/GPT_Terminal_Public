@@ -192,22 +192,10 @@ def process_question(total_docs_var,max_tokens_var,query_temp,openai_status_var,
                 with open(url_file, 'r') as url_file_obj:
                     url_list = [line.strip() for line in url_file_obj]
                 url_loader = SeleniumURLLoader(urls=url_list)
-                url_loader.arguments = ['--disable-gpu']
+                url_loader.headless = True
+                url_loader.continue_on_failure = True
+                url_loader.arguments = ['--disable-gpu','--log-level=3']
                 url_data = url_loader.load()
-                for i, data in enumerate(url_data):
-                    text = data.page_content
-                    f.write(text)
-
-            if wurl_file and os.path.exists(wurl_file):
-                with open(wurl_file, 'r') as wurl_file_obj:
-                    wurl_list = [line.strip() for line in wurl_file_obj]
-                url_loader = SeleniumURLLoader(urls=wurl_list)
-                url_loader.arguments = ['--disable-gpu']
-                url_data = url_loader.load()
-
-                # Create an empty list to collect URLs
-                collected_urls = []
-
                 for i, data in enumerate(url_data):
                     text = data.page_content
                     f.write(text)
@@ -272,23 +260,22 @@ def process_question(total_docs_var,max_tokens_var,query_temp,openai_status_var,
                     request_timeout_sec=10,  # optional, defaults to 10
                 )
                 try:
-                    notion_page_ids = notion_loader._retrieve_page_ids()
+                    notion_page_summaries = notion_loader._retrieve_page_summaries()
                 except Exception as e:
-                    doc_text.insert(tk.END, f"Failed to load notion page ids: {e}\n")
+                    doc_text.insert(tk.END, f"Failed to load notion pages: {e}\n")
                     doc_text.update()
                     doc_text.see(tk.END)
-                    notion_page_ids = []
-                    openai_status_var.set("Failed to load notion page ids: " + str(e))
+                    openai_status_var.set("Failed to load notion pages: " + str(e))
 
                 notion_metadata_client = NotionClient(auth=NOTION_TOKEN)
 
-                for page_id in notion_page_ids:
+                for each_page in notion_page_summaries:
                     attempt = 0
                     while attempt < 2:
                         try:
                             # https://developers.notion.com/reference/block
-                            page_blocks = notion_loader.load_page(page_id)
-                            page_metadata = notion_metadata_client.pages.retrieve(page_id)
+                            page_blocks = notion_loader.load_page(each_page)
+                            page_metadata = notion_metadata_client.pages.retrieve(each_page['id'])
 
                             page_content = page_blocks.page_content
 
@@ -330,12 +317,12 @@ def process_question(total_docs_var,max_tokens_var,query_temp,openai_status_var,
                             break  # if successful, break out of the while loop
                         except Exception as e:
                             attempt += 1
-                            doc_text.insert(tk.END, f"Attempt {attempt} failed to load page {page_id} : {e}\n")
+                            doc_text.insert(tk.END, f"Attempt {attempt} failed to load page {each_page['id']} : {e}\n")
                             doc_text.update()
                             doc_text.see(tk.END)
                             if attempt >= 2:
                                 #print(f"Failed to load page {page_id} after {attempt} attempts")
-                                doc_text.insert(tk.END, f"Failed to load page {page_id} after {attempt} attempts\n")
+                                doc_text.insert(tk.END, f"Failed to load page {each_page['id']} after {attempt} attempts\n")
                                 doc_text.update()
                                 doc_text.see(tk.END)
 
@@ -388,22 +375,23 @@ def process_question(total_docs_var,max_tokens_var,query_temp,openai_status_var,
 
         docsearch = FAISS.load_local(docsearch_path, embeddings)
 
-    # Load additional docsearch instances and combine them
-    if os.path.exists(add_docsearch_file):
-        with open(add_docsearch_file, 'r') as f:
-            add_docsearch_config = json.load(f)
+    if data_use > 0:
+        # Load additional docsearch instances and combine them
+        if os.path.exists(add_docsearch_file):
+            with open(add_docsearch_file, 'r') as f:
+                add_docsearch_config = json.load(f)
 
-        additional_folders = add_docsearch_config.get('additional_folders', [])
-        for folder in additional_folders:
-            additional_docsearch_path = os.path.join(folder, 'docsearch')
-            if os.path.exists(additional_docsearch_path):
-                #print(f"Loading additional docsearch from {additional_docsearch_path}")
-                additional_docsearch = FAISS.load_local(additional_docsearch_path, embeddings)
-                docsearch.merge_from(additional_docsearch)
-            else:
-                doc_text.insert(tk.END, "Additional docsearch path " + additional_docsearch_path + " does not exist" + "\n")
-                doc_text.update()
-                doc_text.see(tk.END)
+            additional_folders = add_docsearch_config.get('additional_folders', [])
+            for folder in additional_folders:
+                additional_docsearch_path = os.path.join(folder, 'docsearch')
+                if os.path.exists(additional_docsearch_path):
+                    #print(f"Loading additional docsearch from {additional_docsearch_path}")
+                    additional_docsearch = FAISS.load_local(additional_docsearch_path, embeddings)
+                    docsearch.merge_from(additional_docsearch)
+                else:
+                    doc_text.insert(tk.END, "Additional docsearch path " + additional_docsearch_path + " does not exist" + "\n")
+                    doc_text.update()
+                    doc_text.see(tk.END)
 
     openai_status = ""
 
