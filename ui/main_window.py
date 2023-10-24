@@ -12,7 +12,7 @@ from ui.main_window_functions import submit, change_font_size
 
 
 def create_main_window():
-    root = tk.Tk() 
+    root = tk.Tk()
     root.title("GPT Terminal")
     
     os.environ["APP_RESTART"] = "False"
@@ -31,10 +31,30 @@ def create_main_window():
     default_system_message = "You are a helpful assistant. Today is: " + today
 
     use_azure = os.getenv("USE_AZURE")
-    frame_color = os.getenv("FRAME_COLOR")
-    label_text = os.getenv("LABEL_TEXT")
-    button_text = os.getenv("BUTTON_TEXT")
-    input_color = os.getenv("INPUT_COLOR")
+    
+    if os.getenv("FRAME_COLOR"):
+        frame_color = os.getenv("FRAME_COLOR")
+    else:
+        # Get default frame color
+        frame_color = root.cget('bg')
+
+    if os.getenv("LABEL_TEXT"):
+        label_text = os.getenv("LABEL_TEXT")
+    else:
+        # Get default label text
+        label_text = root.cget('highlightcolor')
+
+    if os.getenv("BUTTON_TEXT"):
+        button_text = os.getenv("BUTTON_TEXT")
+    else:
+        # Get default button text
+        button_text = root.cget('highlightcolor')
+
+    if os.getenv("INPUT_COLOR"):
+        input_color = os.getenv("INPUT_COLOR")
+    else:
+        # Get default input color
+        input_color = root.cget('bg')
 
     gui_style = ttk.Style()
     gui_style.configure('My.TButton', foreground=button_text, background=frame_color, borderwidth= 0)
@@ -302,7 +322,7 @@ def generate_env_file(filename='environment.env'):
             f.write("BOX_USER_ID=\"\"\n")
             f.write("BOX_FOLDER_ID==\"\"\n")
             f.write("BOX_DEVELOPER_TOKEN==\"\"\n")
-            f.write("FRAME_COLOR=\"#04993B\"\n")
-            f.write("LABEL_TEXT=\"#FFFFFF\"\n")
-            f.write("BUTTON_TEXT=\"#000000\"\n")
-            f.write("INPUT_COLOR=\"#CCFFE1\"\n")
+            f.write("FRAME_COLOR=\"\"\n")
+            f.write("LABEL_TEXT=\"\"\n")
+            f.write("BUTTON_TEXT=\"\"\n")
+            f.write("INPUT_COLOR=\"\"\n")

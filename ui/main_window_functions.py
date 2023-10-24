@@ -6,7 +6,7 @@ from api.question_processing import process_question
 
 def submit(total_docs_var,max_tokens_var,query_temp_var,openai_status_var,input_text, output_text, doc_text, voice_entry = '', data_use=0, data_folder="data", env_file='environment.env',reindex=False,chat_history=[]):
 
-    #output_text.delete(1.0, tk.END) 
+    #output_text.delete(1.0, tk.END)
 
     openai_status_var.set("Processing...")
     
