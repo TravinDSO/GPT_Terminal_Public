@@ -23,7 +23,7 @@ from langchain.document_loaders import SeleniumURLLoader, CSVLoader, NotionDBLoa
 from langchain.callbacks import get_openai_callback
 
 
-# Process the question and return the answer 
+# Process the question and return the answer
 # Also perform the indexing of the documents if needed
 def process_question(total_docs_var,max_tokens_var,query_temp,openai_status_var,doc_text,env_file,data_use, query, prompt_style, data_folder,reindex=False,chat_history=[]):
 

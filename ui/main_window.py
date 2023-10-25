@@ -89,7 +89,7 @@ def create_main_window():
     main_frame.columnconfigure(1, weight=1)
 
     # Create output text widget
-    output_text = HTMLText(main_frame, html="", background=input_color)
+    output_text = tk.Text(main_frame, background=input_color, wrap="word", width=60, height=20)
     output_text.grid(row=1, column=2, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S))
     main_frame.columnconfigure(2, weight=1)
     main_frame.columnconfigure(3, weight=1)
