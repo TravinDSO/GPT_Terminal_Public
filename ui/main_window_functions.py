@@ -26,6 +26,7 @@ def submit(total_docs_var,max_tokens_var,query_temp_var,openai_status_var,input_
 
     openai_status_var.set(openai_status)
 
+    output_text.delete(1.0, tk.END)
     output_text.insert(tk.END, result)
     output_text.update()
 
