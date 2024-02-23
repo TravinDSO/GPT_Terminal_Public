@@ -18,7 +18,7 @@ from langchain_openai import OpenAIEmbeddings
 from langchain.text_splitter import CharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
-from langchain_openai.chat_models import ChatOpenAI
+from langchain_openai.chat_models import ChatOpenAI, AzureChatOpenAI
 from langchain_community.document_loaders import SeleniumURLLoader, CSVLoader, NotionDBLoader
 from langchain_community.callbacks import get_openai_callback
 
@@ -38,14 +38,15 @@ def process_question(total_docs_var,max_tokens_var,query_temp,openai_status_var,
 
     # Load the OPENAI environment variables from the .env file depending on use_azure
     use_azure = os.getenv("USE_AZURE")
-    if use_azure.lower() == "true":
+    if use_azure == "true" or use_azure == "True" or use_azure == "TRUE":
         USE_AZURE = True
         os.environ["OPENAI_API_TYPE"] = "azure"
-        os.environ["OPENAI_API_BASE"] = os.getenv("AZURE_OPENAI_API_ENDPOINT")
+        os.environ["AZURE_OPENAI_ENDPOINT"] = os.getenv("AZURE_OPENAI_API_ENDPOINT")
         os.environ["OPENAI_API_KEY"] = os.getenv("AZURE_OPENAI_API_KEY")
         EMBEDDINGS_MODEL = os.getenv("AZURE_EMBEDDINGS_MODEL")
         AZURE_OPENAI_API_MODEL = os.getenv("AZURE_OPENAI_API_MODEL")
         OpenAIEmbeddings.deployment = os.getenv("AZURE_OPENAI_API_MODEL")
+        os.environ["OPENAI_API_VERSION"] = os.getenv("AZURE_OPENAI_API_VERSION")
     else:
         USE_AZURE = False
         os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
@@ -54,7 +55,7 @@ def process_question(total_docs_var,max_tokens_var,query_temp,openai_status_var,
 
     # Load the NOTION environment variables from the .env file depending on use_notion
     use_notion = os.getenv("USE_NOTION")
-    if use_notion.lower() == "true":
+    if use_notion == "true" or use_notion == "True" or use_notion == "TRUE":
         USE_NOTION = True
         NOTION_TOKEN = os.getenv("NOTION_API_KEY")
         DATABASE_ID = os.getenv("NOTION_DATABASE_ID")
@@ -63,7 +64,7 @@ def process_question(total_docs_var,max_tokens_var,query_temp,openai_status_var,
 
     # Load the BOX environment variables from the .env file depending on use_notion
     use_box = os.getenv("USE_BOX")
-    if use_box.lower() == "true":
+    if use_box == "true" or use_box == "True" or use_box == "TRUE":
         USE_BOX = True
         BOX_TOKEN = os.getenv("BOX_TOKEN")
         BOX_FOLDER_ID = os.getenv("BOX_FOLDER_ID")
@@ -89,7 +90,7 @@ def process_question(total_docs_var,max_tokens_var,query_temp,openai_status_var,
 
 
     if USE_AZURE:
-        llm = ChatOpenAI(max_tokens=max_tokens,deployment_id=AZURE_OPENAI_API_MODEL,temperature=query_temp,top_p=1,frequency_penalty=0,presence_penalty=0)
+        llm = AzureChatOpenAI(max_tokens=max_tokens,azure_deployment=AZURE_OPENAI_API_MODEL,temperature=query_temp,top_p=1,frequency_penalty=0,presence_penalty=0)
     else:
         llm = ChatOpenAI(max_tokens=max_tokens,model_name=OPENAI_API_MODEL,temperature=query_temp,top_p=1,frequency_penalty=0,presence_penalty=0)
 

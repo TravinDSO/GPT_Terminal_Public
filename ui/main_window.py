@@ -170,7 +170,7 @@ def create_main_window():
 
     # Create a label to display the token count, etc
     openai_status_var = tk.StringVar()
-    if use_azure.lower() == "true":
+    if use_azure == "true" or use_azure == "True" or use_azure == "TRUE":
         openai_status_var.set("Terminal Ready: Using Azure API")
     else:
         openai_status_var.set("Terminal Ready: Using OpenAI API")
@@ -264,8 +264,6 @@ def load_data_folder_var(config_file='config.json'):
 
 def get_env_file():
     data_folder = load_data_folder_var()
-    app_folder = os.path.dirname(os.path.abspath(__file__))
-    #app_folder_env = os.path.join(app_folder, "environment.env")
     app_folder_env = 'environment.env'
     env_path = ''
     if data_folder:
