@@ -264,16 +264,18 @@ def load_data_folder_var(config_file='config.json'):
 
 def get_env_file():
     data_folder = load_data_folder_var()
+    app_folder = os.path.dirname(os.path.abspath(__file__))
+    #app_folder_env = os.path.join(app_folder, "environment.env")
+    app_folder_env = 'environment.env'
     env_path = ''
-    data_folder_env = ''
     if data_folder:
         data_folder_env = os.path.join(data_folder, "environment.env")
         if os.path.exists(data_folder_env):
             env_path = data_folder_env
         else:
-            env_path = 'environment.env'
+            env_path = app_folder_env
     else:
-        env_path = 'environment.env'
+        env_path = app_folder_env
     
     return env_path
 

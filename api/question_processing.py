@@ -14,16 +14,16 @@ from box_sdk_gen.client import BoxClient
 from notion_client import Client as NotionClient
 from dotenv import load_dotenv
 from PyPDF2 import PdfReader
-from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from langchain.text_splitter import CharacterTextSplitter
-from langchain.vectorstores import FAISS
+from langchain_community.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
-from langchain.chat_models import ChatOpenAI
-from langchain.document_loaders import SeleniumURLLoader, CSVLoader, NotionDBLoader
-from langchain.callbacks import get_openai_callback
+from langchain_openai.chat_models import ChatOpenAI
+from langchain_community.document_loaders import SeleniumURLLoader, CSVLoader, NotionDBLoader
+from langchain_community.callbacks import get_openai_callback
 
 
-# Process the question and return the answer
+# Process the question and return the answer 
 # Also perform the indexing of the documents if needed
 def process_question(total_docs_var,max_tokens_var,query_temp,openai_status_var,doc_text,env_file,data_use, query, prompt_style, data_folder,reindex=False,chat_history=[]):
 
@@ -218,40 +218,45 @@ def process_question(total_docs_var,max_tokens_var,query_temp,openai_status_var,
                         )
                     box_auth = BoxCCGAuth(config=box_oauth_config)
                 
-                box_client: BoxClient = BoxClient(auth=box_auth)
-                for box_item in box_client.folders.get_folder_items(BOX_FOLDER_ID).entries:
-                    
-                    boxfile_ext = box_item.name.split('.')[-1]
-                    if boxfile_ext in ['vtt', 'txt', 'boxnote']:
-                        boxfile_is_readable = True
-                    else:
-                        boxfile_is_readable = False
+                try:
+                    box_client: BoxClient = BoxClient(auth=box_auth)
+                    for box_item in box_client.folders.get_folder_items(BOX_FOLDER_ID).entries:
+                        
+                        boxfile_ext = box_item.name.split('.')[-1]
+                        if boxfile_ext in ['vtt', 'txt', 'boxnote']:
+                            boxfile_is_readable = True
+                        else:
+                            boxfile_is_readable = False
 
-                    if box_item.type == 'file' and boxfile_is_readable:
-                        try:
-                            box_file = box_client.downloads.download_file(box_item.id).read()
-                            if boxfile_ext == 'boxnote':
-                                boxfile_data = json.loads(box_file.decode('utf-8'))
-                                # Get the lastEditTimestamp value
-                                timestamp_in_millis = boxfile_data.get('lastEditTimestamp')
-                                if timestamp_in_millis:
-                                    timestamp_in_seconds = timestamp_in_millis / 1000
-                                    boxfile_timestamp = datetime.fromtimestamp(timestamp_in_seconds).strftime('%Y-%m-%d %H:%M:%S')
+                        if box_item.type == 'file' and boxfile_is_readable:
+                            try:
+                                box_file = box_client.downloads.download_file(box_item.id).read()
+                                if boxfile_ext == 'boxnote':
+                                    boxfile_data = json.loads(box_file.decode('utf-8'))
+                                    # Get the lastEditTimestamp value
+                                    timestamp_in_millis = boxfile_data.get('lastEditTimestamp')
+                                    if timestamp_in_millis:
+                                        timestamp_in_seconds = timestamp_in_millis / 1000
+                                        boxfile_timestamp = datetime.fromtimestamp(timestamp_in_seconds).strftime('%Y-%m-%d %H:%M:%S')
 
-                                boxfile_text = boxfile_data.get('atext', {}).get('text', '')
-                                f.write("Note name:" + box_item.name + " Date of note:" + boxfile_timestamp + " Note:" + boxfile_text)
-                            elif boxfile_ext in ['vtt', 'txt']:
-                                boxfile_text = box_file.decode('utf-8')
-                                f.write("File name:" + box_item.name + " File Text:" + boxfile_text)
+                                    boxfile_text = boxfile_data.get('atext', {}).get('text', '')
+                                    f.write("Note name:" + box_item.name + " Date of note:" + boxfile_timestamp + " Note:" + boxfile_text)
+                                elif boxfile_ext in ['vtt', 'txt']:
+                                    boxfile_text = box_file.decode('utf-8')
+                                    f.write("File name:" + box_item.name + " File Text:" + boxfile_text)
 
-                            doc_text.insert(tk.END, f"Loaded box file: {box_item.name}\n")
-                            doc_text.update()
-                            doc_text.see(tk.END)
-                        except Exception as e:
-                            doc_text.insert(tk.END, f"Failed to load box file {box_item.name}: {e}\n")
-                            doc_text.update()
-                            doc_text.see(tk.END)
-                    time.sleep(1)  # Rate limit pause
+                                doc_text.insert(tk.END, f"Loaded box file: {box_item.name}\n")
+                                doc_text.update()
+                                doc_text.see(tk.END)
+                            except Exception as e:
+                                doc_text.insert(tk.END, f"Failed to load box file {box_item.name}: {e}\n")
+                                doc_text.update()
+                                doc_text.see(tk.END)
+                        time.sleep(1)  # Rate limit pause
+                except Exception as e:
+                    doc_text.insert(tk.END, f"Failed to load box files: {e}\n")
+                    doc_text.update()
+                    doc_text.see(tk.END)
 
             if USE_NOTION:
                 notion_loader = NotionDBLoader(
@@ -262,69 +267,71 @@ def process_question(total_docs_var,max_tokens_var,query_temp,openai_status_var,
                 try:
                     notion_page_summaries = notion_loader._retrieve_page_summaries()
                 except Exception as e:
+                    notion_page_summaries = []
                     doc_text.insert(tk.END, f"Failed to load notion pages: {e}\n")
                     doc_text.update()
                     doc_text.see(tk.END)
                     openai_status_var.set("Failed to load notion pages: " + str(e))
 
-                notion_metadata_client = NotionClient(auth=NOTION_TOKEN)
+                if notion_page_summaries:
+                    notion_metadata_client = NotionClient(auth=NOTION_TOKEN)
 
-                for each_page in notion_page_summaries:
-                    attempt = 0
-                    while attempt < 2:
-                        try:
-                            # https://developers.notion.com/reference/block
-                            page_blocks = notion_loader.load_page(each_page)
-                            page_metadata = notion_metadata_client.pages.retrieve(each_page['id'])
-
-                            page_content = page_blocks.page_content
-
-                            # Get page text from the page blocks
-                            page_name = page_blocks.metadata['name']
+                    for each_page in notion_page_summaries:
+                        attempt = 0
+                        while attempt < 2:
                             try:
-                                page_due = page_metadata['properties']['Due']['date']
-                            except:
-                                page_due = None
-                            try:
-                                page_status = page_metadata['properties']['Status']['select']['name']
-                            except:
-                                page_status = None
-                            try:
-                                page_labels = page_metadata['properties']['Label']['multi_select'][0]['name']
-                            except:
-                                page_labels = None
+                                # https://developers.notion.com/reference/block
+                                page_blocks = notion_loader.load_page(each_page)
+                                page_metadata = notion_metadata_client.pages.retrieve(each_page['id'])
 
-                            # Write the page text to the gz file
-                            write_str = ''
-                            if page_name:
-                                write_str += f"Page Title:{page_name}\n"
-                            if page_due:
-                                write_str += f"|Page Date Due:{page_due}\n"
-                            if page_status:
-                                write_str += f"|Page Status:{page_status}\n"
-                            if page_labels:
-                                write_str += f"|Page Labels:{page_labels}\n"
-                            if page_content:
-                                write_str += f"|Page Content:{page_content}\n"
-                            f.write(write_str)
+                                page_content = page_blocks.page_content
 
-                            if attempt == 0:
-                                doc_text.insert(tk.END, f"Loaded page: {page_name}\n")
-                            else:
-                                doc_text.insert(tk.END, f"Surccessfly loaded page: {page_name} after retry\n")
-                            doc_text.update()
-                            doc_text.see(tk.END)
-                            break  # if successful, break out of the while loop
-                        except Exception as e:
-                            attempt += 1
-                            doc_text.insert(tk.END, f"Attempt {attempt} failed to load page {each_page['id']} : {e}\n")
-                            doc_text.update()
-                            doc_text.see(tk.END)
-                            if attempt >= 2:
-                                #print(f"Failed to load page {page_id} after {attempt} attempts")
-                                doc_text.insert(tk.END, f"Failed to load page {each_page['id']} after {attempt} attempts\n")
+                                # Get page text from the page blocks
+                                page_name = page_blocks.metadata['name']
+                                try:
+                                    page_due = page_metadata['properties']['Due']['date']
+                                except:
+                                    page_due = None
+                                try:
+                                    page_status = page_metadata['properties']['Status']['select']['name']
+                                except:
+                                    page_status = None
+                                try:
+                                    page_labels = page_metadata['properties']['Label']['multi_select'][0]['name']
+                                except:
+                                    page_labels = None
+
+                                # Write the page text to the gz file
+                                write_str = ''
+                                if page_name:
+                                    write_str += f"Page Title:{page_name}\n"
+                                if page_due:
+                                    write_str += f"|Page Date Due:{page_due}\n"
+                                if page_status:
+                                    write_str += f"|Page Status:{page_status}\n"
+                                if page_labels:
+                                    write_str += f"|Page Labels:{page_labels}\n"
+                                if page_content:
+                                    write_str += f"|Page Content:{page_content}\n"
+                                f.write(write_str)
+
+                                if attempt == 0:
+                                    doc_text.insert(tk.END, f"Loaded page: {page_name}\n")
+                                else:
+                                    doc_text.insert(tk.END, f"Surccessfly loaded page: {page_name} after retry\n")
                                 doc_text.update()
                                 doc_text.see(tk.END)
+                                break  # if successful, break out of the while loop
+                            except Exception as e:
+                                attempt += 1
+                                doc_text.insert(tk.END, f"Attempt {attempt} failed to load page {each_page['id']} : {e}\n")
+                                doc_text.update()
+                                doc_text.see(tk.END)
+                                if attempt >= 2:
+                                    #print(f"Failed to load page {page_id} after {attempt} attempts")
+                                    doc_text.insert(tk.END, f"Failed to load page {each_page['id']} after {attempt} attempts\n")
+                                    doc_text.update()
+                                    doc_text.see(tk.END)
 
     if (not os.path.exists(chain_path) or reindex) and data_use > 0:
         # Initialize an empty list to store processed text chunks
@@ -362,7 +369,7 @@ def process_question(total_docs_var,max_tokens_var,query_temp,openai_status_var,
         if USE_AZURE:
             embeddings = OpenAIEmbeddings(model=EMBEDDINGS_MODEL,chunk_size=16)
         else:
-            embeddings = OpenAIEmbeddings(model=EMBEDDINGS_MODEL,chunk_size=500)
+            embeddings = OpenAIEmbeddings(model=EMBEDDINGS_MODEL,chunk_size=1000)
 
         docsearch = FAISS.from_texts(processed_texts_cache, embeddings)
         docsearch.save_local(docsearch_path)
@@ -371,7 +378,7 @@ def process_question(total_docs_var,max_tokens_var,query_temp,openai_status_var,
         if USE_AZURE:
             embeddings = OpenAIEmbeddings(model=EMBEDDINGS_MODEL,chunk_size=16)
         else:
-            embeddings = OpenAIEmbeddings(model=EMBEDDINGS_MODEL,chunk_size=500)
+            embeddings = OpenAIEmbeddings(model=EMBEDDINGS_MODEL,chunk_size=1000)
 
         docsearch = FAISS.load_local(docsearch_path, embeddings)
 
@@ -402,9 +409,9 @@ def process_question(total_docs_var,max_tokens_var,query_temp,openai_status_var,
         answer = ""
 
         if prompt_style:
-            question = f"'role': 'system', 'content':{prompt_style}\n'role': 'system', 'user'{query}"
+            question = f"'role': 'system', 'content':{prompt_style}\n'role': 'user', 'content':{query}"
         else:
-            question = f"{query}"
+            question = f"'role': 'user', 'content':{query}"
 
         if data_use == 1:
             number_of_docs = int(float(total_docs_var.get()))
@@ -413,6 +420,7 @@ def process_question(total_docs_var,max_tokens_var,query_temp,openai_status_var,
             with get_openai_callback() as cb:
                 try:
                     answer = doc_chain.run(input_documents=docs, question=question)
+                    #answer = doc_chain.invoke(input=docs, question=question)
                 except Exception as e:
                     if "maximum context length" in str(e):
                         try:
@@ -425,6 +433,7 @@ def process_question(total_docs_var,max_tokens_var,query_temp,openai_status_var,
                             number_of_docs = calculate_num_docs(num_tokens, max_context_length)
                             docs = docsearch.similarity_search(query, k=number_of_docs)
                             answer = doc_chain.run(input_documents=docs, question=question)
+                            #answer = doc_chain.invoke(input=docs, question=question)
                             openai_status += "Maximum tokens exceeded. Temporary reduced documents to " + str(number_of_docs) + " | "
                         except:
                             try:
@@ -434,6 +443,7 @@ def process_question(total_docs_var,max_tokens_var,query_temp,openai_status_var,
                                 number_of_docs = (int(adjusted_number_of_docs))           
                                 docs = docsearch.similarity_search(query, k=number_of_docs)
                                 answer = doc_chain.run(input_documents=docs, question=question)
+                                #answer = doc_chain.invoke(input=docs, question=question)
                                 openai_status += "Maximum tokens exceeded. Temporary reduced documents to " + str(number_of_docs) + " | "
                             except:
                                 try:
@@ -442,6 +452,7 @@ def process_question(total_docs_var,max_tokens_var,query_temp,openai_status_var,
                                     number_of_docs = 5
                                     docs = docsearch.similarity_search(query, k=number_of_docs)
                                     answer = doc_chain.run(input_documents=docs, question=question)
+                                    #answer = doc_chain.invoke(input=docs, question=question)
                                     openai_status += "Maximum tokens exceeded. Temporary reduced documents to 5. | "
                                 except:
                                     doc_text.insert(tk.END, "Error: " + str(e) + "\n")
@@ -460,6 +471,7 @@ def process_question(total_docs_var,max_tokens_var,query_temp,openai_status_var,
             with get_openai_callback() as cb:
                 try:
                     answer = doc_chain.run(input_documents=docs, question=question)
+                    #answer = doc_chain.invoke(input=docs, question=question)
                 except Exception as e:
                     print(e)
                     answer = ""
