@@ -1,4 +1,5 @@
 import os
+import warnings
 from ui.main_window import generate_env_file, create_main_window
 
 # pip install -U -r requirements.txt
@@ -6,6 +7,9 @@ from ui.main_window import generate_env_file, create_main_window
 # pyinstaller --onefile --noconsole --icon=twist.ico main.py
 
 def main():
+
+    # Suppress warnings when running the bot normally
+    warnings.filterwarnings("ignore")
 
     # Generate the environment file if it doesn't exist
     generate_env_file()
