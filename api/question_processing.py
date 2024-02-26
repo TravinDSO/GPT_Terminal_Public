@@ -14,7 +14,7 @@ from box_sdk_gen.client import BoxClient
 from notion_client import Client as NotionClient
 from dotenv import load_dotenv
 from PyPDF2 import PdfReader
-from langchain_openai import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings, AzureOpenAIEmbeddings
 from langchain.text_splitter import CharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
@@ -368,7 +368,7 @@ def process_question(total_docs_var,max_tokens_var,query_temp,openai_status_var,
         os.remove(compressed_raw_text_file)
 
         if USE_AZURE:
-            embeddings = OpenAIEmbeddings(model=EMBEDDINGS_MODEL,chunk_size=16)
+            embeddings = AzureOpenAIEmbeddings(model=EMBEDDINGS_MODEL,chunk_size=16)
         else:
             embeddings = OpenAIEmbeddings(model=EMBEDDINGS_MODEL,chunk_size=1000)
 
@@ -377,7 +377,7 @@ def process_question(total_docs_var,max_tokens_var,query_temp,openai_status_var,
         doc_chain.save(chain_path)
     elif data_use > 0:
         if USE_AZURE:
-            embeddings = OpenAIEmbeddings(model=EMBEDDINGS_MODEL,chunk_size=16)
+            embeddings = AzureOpenAIEmbeddings(model=EMBEDDINGS_MODEL,chunk_size=16)
         else:
             embeddings = OpenAIEmbeddings(model=EMBEDDINGS_MODEL,chunk_size=1000)
 
